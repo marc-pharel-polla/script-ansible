@@ -1,0 +1,61 @@
+---
+- name: Mettre à jour le système
+  dnf:
+    name: "*"
+    state: latest
+
+- name: Installer les dépendances requises pour Docker
+  dnf:
+    name:
+      - dnf-plugins-core
+      - device-mapper-persistent-data
+      - lvm2
+    state: present
+
+- name: Ajouter le dépôt Docker officiel
+  ansible.builtin.command:
+    cmd: dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
+    creates: /etc/yum.repos.d/docker-ce.repo
+
+- name: Installer Docker et docker-compose-plugin
+  dnf:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-compose-plugin
+    state: present
+
+- name: Démarrer et activer le service Docker
+  systemd:
+    name: docker
+    enabled: true
+    state: started
+
+- name: Ajouter l'utilisateur au groupe docker
+  ansible.builtin.user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: true
+
+- name: Installer firewalld
+  dnf:
+    name: firewalld
+    state: present
+
+- name: Activer et démarrer firewalld
+  systemd:
+    name: firewalld
+    enabled: true
+    state: started
+
+- name: Ouvrir les ports HTTP (80) et 5000 dans firewalld
+  firewalld:
+    port: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop:
+    - 80/tcp
+    - 5000/tcp
+
